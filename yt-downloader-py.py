@@ -3,10 +3,10 @@ import subprocess
 import requests
 import argparse
 
-def check_dependency(command, install_command):
+def check_dependency(command, install_command, version_arg="--version"):
     """Check if a dependency is installed, and install it if it is not."""
     try:
-        subprocess.run([command, "--version"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        subprocess.run([command, version_arg], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         print(f"{command} sudah terinstal.")
     except (subprocess.CalledProcessError, FileNotFoundError):
         print(f"{command} tidak ditemukan. Menginstal {command}...")
@@ -186,7 +186,7 @@ if __name__ == "__main__":
         usage()
         exit()
 
-    check_dependency("ffmpeg", ["sudo", "apt", "install", "-y", "ffmpeg"])
+    check_dependency("ffmpeg", ["sudo", "apt", "install", "-y", "ffmpeg"], version_arg="-version")
     if check_yt_dlp():
         validate_download_folder()
         
