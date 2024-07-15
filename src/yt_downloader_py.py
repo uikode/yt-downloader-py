@@ -121,7 +121,7 @@ def validate_download_list(video_quality):
     - video_quality: The quality of the video to check for existing downloads.
 
     Returns:
-    - True if there are valid URLs to download, False otherwise.
+    - A list of valid URLs to download.
     """
     data_folder = os.path.expanduser("~/yt-downloader-py-data")
     download_list_path = os.path.join(data_folder, "download-list.txt")
@@ -129,7 +129,7 @@ def validate_download_list(video_quality):
     
     if not os.path.exists(download_list_path):
         print("File download-list.txt not found. Create the file and add the video URLs you want to download.")
-        return False
+        return []
     
     with open(download_list_path, "r") as file:
         urls = file.readlines()
@@ -138,7 +138,7 @@ def validate_download_list(video_quality):
     
     if not urls:
         print("The URL list in download-list.txt is empty. Add the video URLs you want to download.")
-        return False
+        return []
     
     fixed_urls = fix_url_format(urls)
     
@@ -157,21 +157,18 @@ def validate_download_list(video_quality):
         
         valid_urls.append(url)  # Use the original URL for downloading
     
-    if not valid_urls:
-        print("No valid URLs found in download-list.txt.")
-        return False
-    
     with open(download_list_path, "w") as file:
         file.write("\n".join(valid_urls))
     
-    return True
+    return valid_urls
 
-def batch_download_videos(video_quality):
+def batch_download_videos(video_quality, urls):
     """
     Download and merge videos from the URLs in the download list.
 
     Parameters:
     - video_quality: The quality of the video to download.
+    - urls: The list of URLs to download.
     """
     data_folder = os.path.expanduser("~/yt-downloader-py-data")
     download_folder = os.path.join(data_folder, "downloaded-yt-video")
@@ -186,22 +183,31 @@ def batch_download_videos(video_quality):
     
     format_option = quality_map.get(video_quality, quality_map["best"])
 
-    command = [
-        "yt-dlp",
-        "-f", format_option,
-        "--merge-output-format", "mp4",
-        "-a", download_list_path,
-        "-o", os.path.join(download_folder, f"%(title)s.%(ext)s")
-    ]
-    
-    subprocess.run(command)
+    for url in urls:
+        command = [
+            "yt-dlp",
+            "-f", format_option,
+            "--merge-output-format", "mp4",
+            url,
+            "-o", os.path.join(download_folder, f"%(title)s.%(ext)s")
+        ]
+        
+        subprocess.run(command)
 
-    for root, _, files in os.walk(download_folder):
-        for file in files:
-            if file.endswith(".mp4") and video_quality in file:
-                base, ext = os.path.splitext(file)
-                new_name = f"{base}_{video_quality}{ext}"
-                os.rename(os.path.join(root, file), os.path.join(root, new_name))
+        for root, _, files in os.walk(download_folder):
+            for file in files:
+                if file.endswith(".mp4") and video_quality in file:
+                    base, ext = os.path.splitext(file)
+                    new_name = f"{base}_{video_quality}{ext}"
+                    os.rename(os.path.join(root, file), os.path.join(root, new_name))
+
+        # Remove the processed URL from the download list
+        with open(download_list_path, "r") as file:
+            lines = file.readlines()
+        with open(download_list_path, "w") as file:
+            for line in lines:
+                if line.strip() != url:
+                    file.write(line)
 
 def usage():
     """
@@ -247,7 +253,8 @@ if __name__ == "__main__":
     if check_yt_dlp():
         validate_download_folder()
         
-        if validate_download_list(args.quality):
-            batch_download_videos(args.quality)
+        urls_to_download = validate_download_list(args.quality)
+        if urls_to_download:
+            batch_download_videos(args.quality, urls_to_download)
         else:
             print("Download process stopped because no valid URLs found in download-list.txt.")

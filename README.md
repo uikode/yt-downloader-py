@@ -18,7 +18,7 @@ To get started with YT Downloader Py, follow the instructions below:
 #### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/yt-downloader-py.git cd yt-downloader-py`
+git clone https://github.com/uikode/yt-downloader-py.git cd yt-downloader-py`
 ```
 
 #### 2. Prepare Your Download List
