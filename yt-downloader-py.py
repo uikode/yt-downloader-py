@@ -2,24 +2,48 @@ import os
 import subprocess
 import requests
 
-def check_youtube_dl():
-    youtube_dl_path = "/usr/local/bin/youtube-dl"
-    youtube_dl_symlink = "/usr/bin/youtube-dl"
-    
-    if not os.path.exists(youtube_dl_path):
-        print("youtube-dl tidak ditemukan. Mendownload youtube-dl...")
-        response = requests.get("https://github.com/ytdl-org/youtube-dl/releases/download/2021.12.17/youtube-dl")
-        with open("/tmp/youtube-dl", "wb") as file:
-            file.write(response.content)
-        subprocess.run(["sudo", "mv", "/tmp/youtube-dl", youtube_dl_path])
-        subprocess.run(["sudo", "chmod", "a+rx", youtube_dl_path])
-        print("youtube-dl berhasil di-download dan diinstal.")
+def check_dependency(command, install_command):
+    """Check if a dependency is installed, and install it if it is not."""
+    try:
+        subprocess.run([command, "--version"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        print(f"{command} sudah terinstal.")
+    except subprocess.CalledProcessError:
+        print(f"{command} tidak ditemukan. Menginstal {command}...")
+        subprocess.run(install_command, check=True)
+        print(f"{command} berhasil diinstal.")
+    except FileNotFoundError:
+        print(f"{command} tidak ditemukan. Menginstal {command}...")
+        subprocess.run(install_command, check=True)
+        print(f"{command} berhasil diinstal.")
 
-    if not os.path.exists(youtube_dl_symlink):
-        subprocess.run(["sudo", "ln", "-s", youtube_dl_path, youtube_dl_symlink])
-        print(f"Symbolic link untuk youtube-dl dibuat di {youtube_dl_symlink}")
+def check_yt_dlp():
+    yt_dlp_path = "/usr/local/bin/yt-dlp"
+    yt_dlp_symlink = "/usr/bin/yt-dlp"
+    
+    if not os.path.exists(yt_dlp_path):
+        print("yt-dlp tidak ditemukan. Mendownload yt-dlp...")
+        try:
+            response = requests.get("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp", stream=True)
+            total_size = int(response.headers.get('content-length', 0))
+            block_size = 1024  # ukuran blok untuk mengunduh
+            with open("/tmp/yt-dlp", "wb") as file:
+                for data in response.iter_content(block_size):
+                    file.write(data)
+            print("yt-dlp berhasil di-download.")
+            subprocess.run(["sudo", "mv", "/tmp/yt-dlp", yt_dlp_path])
+            subprocess.run(["sudo", "chmod", "a+rx", yt_dlp_path])
+            print("yt-dlp berhasil diinstal.")
+        except requests.RequestException as e:
+            print(f"Error saat mendownload yt-dlp: {e}")
+            return False
+
+    if not os.path.exists(yt_dlp_symlink):
+        subprocess.run(["sudo", "ln", "-s", yt_dlp_path, yt_dlp_symlink])
+        print(f"Symbolic link untuk yt-dlp dibuat di {yt_dlp_symlink}")
     else:
-        print("Symbolic link untuk youtube-dl sudah ada.")
+        print("Symbolic link untuk yt-dlp sudah ada.")
+    
+    return True
 
 def validate_download_folder():
     download_folder = os.path.expanduser("~/downloaded-yt-video")
@@ -66,7 +90,7 @@ def validate_download_list():
             continue
         
         try:
-            result = subprocess.run(["youtube-dl", "--get-title", url], capture_output=True, text=True)
+            result = subprocess.run(["yt-dlp", "--get-title", url], capture_output=True, text=True)
             if result.returncode == 0:
                 valid_urls.append(url)  # Gunakan URL asli untuk mengunduh
             else:
@@ -89,8 +113,8 @@ def batch_download_videos():
     download_list_path = os.path.expanduser("~/download-list.txt")
     
     command = [
-        "youtube-dl",
-        "-f", "bestvideo[height<=720]+bestaudio/best",
+        "yt-dlp",
+        "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]",
         "--merge-output-format", "mp4",
         "-a", download_list_path,
         "-o", os.path.join(download_folder, "%(title)s.%(ext)s")
@@ -99,10 +123,11 @@ def batch_download_videos():
     subprocess.run(command)
 
 if __name__ == "__main__":
-    check_youtube_dl()
-    validate_download_folder()
-    
-    if validate_download_list():
-        batch_download_videos()
-    else:
-        print("Proses download dihentikan karena tidak ada URL valid di download-list.txt.")
+    check_dependency("ffmpeg", ["sudo", "apt", "install", "-y", "ffmpeg"])
+    if check_yt_dlp():
+        validate_download_folder()
+        
+        if validate_download_list():
+            batch_download_videos()
+        else:
+            print("Proses download dihentikan karena tidak ada URL valid di download-list.txt.")
