@@ -194,9 +194,10 @@ def batch_download_videos(video_quality, urls):
         
         subprocess.run(command)
 
+        # Rename files after download and merge
         for root, _, files in os.walk(download_folder):
             for file in files:
-                if file.endswith(".mp4") and video_quality in file:
+                if file.endswith(".mp4") and not file.endswith(f"_{video_quality}.mp4"):
                     base, ext = os.path.splitext(file)
                     new_name = f"{base}_{video_quality}{ext}"
                     os.rename(os.path.join(root, file), os.path.join(root, new_name))
