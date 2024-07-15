@@ -4,62 +4,104 @@ import requests
 import argparse
 
 def check_dependency(command, install_command, version_arg="--version"):
-    """Check if a dependency is installed, and install it if it is not."""
+    """
+    Check if a program (dependency) is installed, and install it if it is not.
+
+    Parameters:
+    - command: The command to check for the program.
+    - install_command: The command to install the program.
+    - version_arg: The argument to check the program's version (default is "--version").
+    """
     try:
         subprocess.run([command, version_arg], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        print(f"{command} sudah terinstal.")
+        print(f"{command} is already installed.")
     except (subprocess.CalledProcessError, FileNotFoundError):
-        print(f"{command} tidak ditemukan. Menginstal {command}...")
+        print(f"{command} is not found. Installing {command}...")
         subprocess.run(install_command, check=True)
-        print(f"{command} berhasil diinstal.")
+        print(f"{command} is now installed.")
 
 def check_yt_dlp():
+    """
+    Check if yt-dlp is installed, and download and install it if it is not.
+
+    Returns:
+    - True if yt-dlp is installed or successfully installed, False otherwise.
+    """
     yt_dlp_path = "/usr/local/bin/yt-dlp"
     yt_dlp_symlink = "/usr/bin/yt-dlp"
     
     if not os.path.exists(yt_dlp_path):
-        print("yt-dlp tidak ditemukan. Mendownload yt-dlp...")
+        print("yt-dlp is not found. Downloading yt-dlp...")
         try:
             response = requests.get("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp", stream=True)
             total_size = int(response.headers.get('content-length', 0))
-            block_size = 1024  # ukuran blok untuk mengunduh
+            block_size = 1024  # block size for downloading
             with open("/tmp/yt-dlp", "wb") as file:
                 for data in response.iter_content(block_size):
                     file.write(data)
-            print("yt-dlp berhasil di-download.")
+            print("yt-dlp is downloaded.")
             subprocess.run(["sudo", "mv", "/tmp/yt-dlp", yt_dlp_path])
             subprocess.run(["sudo", "chmod", "a+rx", yt_dlp_path])
-            print("yt-dlp berhasil diinstal.")
+            print("yt-dlp is installed.")
         except requests.RequestException as e:
-            print(f"Error saat mendownload yt-dlp: {e}")
+            print(f"Error downloading yt-dlp: {e}")
             return False
 
     if not os.path.exists(yt_dlp_symlink):
         subprocess.run(["sudo", "ln", "-s", yt_dlp_path, yt_dlp_symlink])
-        print(f"Symbolic link untuk yt-dlp dibuat di {yt_dlp_symlink}")
+        print(f"Symbolic link for yt-dlp created at {yt_dlp_symlink}")
     else:
-        print("Symbolic link untuk yt-dlp sudah ada.")
+        print("Symbolic link for yt-dlp already exists.")
     
     return True
 
 def validate_download_folder():
+    """
+    Check if the download folder exists, and create it if it does not.
+    """
     data_folder = os.path.expanduser("~/yt-downloader-py-data")
     download_folder = os.path.join(data_folder, "downloaded-yt-video")
     
     if not os.path.exists(download_folder):
         os.makedirs(download_folder)
-        print(f"Folder {download_folder} telah dibuat.")
+        print(f"Folder {download_folder} is created.")
     else:
-        print(f"Folder {download_folder} sudah tersedia.")
+        print(f"Folder {download_folder} already exists.")
 
 def clean_url(url):
-    # Memisahkan URL pada parameter tambahan dan hanya menggunakan bagian pertama
+    """
+    Clean the URL by removing extra parameters.
+
+    Parameters:
+    - url: The original URL.
+
+    Returns:
+    - The cleaned URL.
+    """
     return url.split('&')[0]
 
 def fix_url_format(urls):
+    """
+    Clean all URLs in a list.
+
+    Parameters:
+    - urls: The list of URLs.
+
+    Returns:
+    - A list of cleaned URLs.
+    """
     return [clean_url(url) for url in urls]
 
 def get_video_title(url):
+    """
+    Get the title of the video from its URL.
+
+    Parameters:
+    - url: The video URL.
+
+    Returns:
+    - The video title if successful, None otherwise.
+    """
     try:
         result = subprocess.run(["yt-dlp", "--get-title", url], capture_output=True, text=True)
         if result.returncode == 0:
@@ -68,16 +110,25 @@ def get_video_title(url):
             print(f"Error getting title for URL: {url}")
             return None
     except subprocess.CalledProcessError as e:
-        print(f"Error getting title for URL: {url}. Pesan error: {e}")
+        print(f"Error getting title for URL: {url}. Error message: {e}")
         return None
 
 def validate_download_list(video_quality):
+    """
+    Check if the download list file exists and contains valid URLs. Remove URLs that are already downloaded.
+
+    Parameters:
+    - video_quality: The quality of the video to check for existing downloads.
+
+    Returns:
+    - True if there are valid URLs to download, False otherwise.
+    """
     data_folder = os.path.expanduser("~/yt-downloader-py-data")
     download_list_path = os.path.join(data_folder, "download-list.txt")
     download_folder = os.path.join(data_folder, "downloaded-yt-video")
     
     if not os.path.exists(download_list_path):
-        print("File download-list.txt tidak ditemukan. Buat file dan isi dengan URL video yang ingin di-download.")
+        print("File download-list.txt not found. Create the file and add the video URLs you want to download.")
         return False
     
     with open(download_list_path, "r") as file:
@@ -86,38 +137,42 @@ def validate_download_list(video_quality):
     urls = [url.strip() for url in urls if url.strip()]
     
     if not urls:
-        print("Daftar URL di download-list.txt kosong. Tambahkan URL video yang ingin di-download.")
+        print("The URL list in download-list.txt is empty. Add the video URLs you want to download.")
         return False
     
-    # Memperbaiki format URL sebelum validasi
     fixed_urls = fix_url_format(urls)
     
     valid_urls = []
     for url in fixed_urls:
         video_title = get_video_title(url)
         if video_title is None:
-            print(f"URL tidak valid: {url}. Menghapus dari daftar.")
+            print(f"Invalid URL: {url}. Removing from the list.")
             continue
 
         video_path = os.path.join(download_folder, f"{video_title}_{video_quality}.mp4")
         
         if os.path.exists(video_path):
-            print(f"Video {url} dengan judul {video_title} dan kualitas {video_quality} sudah di-download sebelumnya. Menghapus dari daftar.")
+            print(f"Video {url} with title {video_title} and quality {video_quality} is already downloaded. Removing from the list.")
             continue
         
-        valid_urls.append(url)  # Gunakan URL asli untuk mengunduh
+        valid_urls.append(url)  # Use the original URL for downloading
     
     if not valid_urls:
-        print("Tidak ada URL valid yang ditemukan di download-list.txt.")
+        print("No valid URLs found in download-list.txt.")
         return False
     
-    # Memperbarui file download-list.txt dengan URL yang telah diperbaiki
     with open(download_list_path, "w") as file:
         file.write("\n".join(valid_urls))
     
     return True
 
 def batch_download_videos(video_quality):
+    """
+    Download and merge videos from the URLs in the download list.
+
+    Parameters:
+    - video_quality: The quality of the video to download.
+    """
     data_folder = os.path.expanduser("~/yt-downloader-py-data")
     download_folder = os.path.join(data_folder, "downloaded-yt-video")
     download_list_path = os.path.join(data_folder, "download-list.txt")
@@ -141,7 +196,6 @@ def batch_download_videos(video_quality):
     
     subprocess.run(command)
 
-    # Rename the merged files with quality information
     for root, _, files in os.walk(download_folder):
         for file in files:
             if file.endswith(".mp4") and video_quality in file:
@@ -150,6 +204,9 @@ def batch_download_videos(video_quality):
                 os.rename(os.path.join(root, file), os.path.join(root, new_name))
 
 def usage():
+    """
+    Display usage instructions and examples.
+    """
     usage_text = """
 Usage: python3 yt-downloader-py.py [options]
 
@@ -193,4 +250,4 @@ if __name__ == "__main__":
         if validate_download_list(args.quality):
             batch_download_videos(args.quality)
         else:
-            print("Proses download dihentikan karena tidak ada URL valid di download-list.txt.")
+            print("Download process stopped because no valid URLs found in download-list.txt.")
