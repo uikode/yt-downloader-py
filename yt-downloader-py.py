@@ -132,10 +132,42 @@ def batch_download_videos(video_quality):
     
     subprocess.run(command)
 
+def usage():
+    usage_text = """
+Usage: python3 yt-downloader-py.py [options]
+
+Options:
+  -h, --help            Show this help message and exit
+  -q, --quality         Video quality to download (choices: best, 1080p, 720p, 480p)
+  
+Examples:
+  1. Download with default quality (best available):
+     python3 yt-downloader-py.py
+     
+  2. Download with specified quality:
+     python3 yt-downloader-py.py --quality 720p
+     python3 yt-downloader-py.py -q 1080p
+     
+Description:
+  This script downloads YouTube videos based on a list of URLs provided in the ~/download-list.txt file.
+  The videos will be downloaded to the ~/downloaded-yt-video directory.
+  If the required dependencies (yt-dlp and ffmpeg) are not installed, the script will install them automatically.
+  The downloaded videos will be saved in MP4 format with the specified quality.
+
+Note:
+  Ensure that the URLs in ~/download-list.txt are valid YouTube video URLs.
+"""
+    print(usage_text)
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Download YouTube videos with specified quality.")
+    parser = argparse.ArgumentParser(description="Download YouTube videos with specified quality.", add_help=False)
     parser.add_argument("-q", "--quality", choices=["best", "1080p", "720p", "480p"], default="best", help="Video quality to download")
+    parser.add_argument("-h", "--help", action="store_true", help="Show this help message and exit")
     args = parser.parse_args()
+
+    if args.help:
+        usage()
+        exit()
 
     check_dependency("ffmpeg", ["sudo", "apt", "install", "-y", "ffmpeg"])
     if check_yt_dlp():
