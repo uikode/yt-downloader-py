@@ -8,7 +8,7 @@ def check_youtube_dl():
     
     if not os.path.exists(youtube_dl_path):
         print("youtube-dl tidak ditemukan. Mendownload youtube-dl...")
-        response = requests.get("https://yt-dl.org/downloads/latest/youtube-dl")
+        response = requests.get("https://github.com/ytdl-org/youtube-dl/releases/download/2021.12.17/youtube-dl")
         with open("/tmp/youtube-dl", "wb") as file:
             file.write(response.content)
         subprocess.run(["sudo", "mv", "/tmp/youtube-dl", youtube_dl_path])
