@@ -114,12 +114,13 @@ def batch_download_videos(video_quality):
     download_list_path = os.path.expanduser("~/download-list.txt")
 
     quality_map = {
+        "best": "bestvideo[height<=2160]+bestaudio/best[height<=2160]",
         "1080p": "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
         "720p": "bestvideo[height<=720]+bestaudio/best[height<=720]",
         "480p": "bestvideo[height<=480]+bestaudio/best[height<=480]"
     }
     
-    format_option = quality_map.get(video_quality, "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]")
+    format_option = quality_map.get(video_quality, quality_map["best"])
 
     command = [
         "yt-dlp",
@@ -133,7 +134,7 @@ def batch_download_videos(video_quality):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Download YouTube videos with specified quality.")
-    parser.add_argument("--quality", choices=["1080p", "720p", "480p"], default="1080p", help="Video quality to download")
+    parser.add_argument("-q", "--quality", choices=["best", "1080p", "720p", "480p"], default="best", help="Video quality to download")
     args = parser.parse_args()
 
     check_dependency("ffmpeg", ["sudo", "apt", "install", "-y", "ffmpeg"])
