@@ -9,13 +9,14 @@ def check_youtube_dl():
     if not os.path.exists(youtube_dl_path):
         print("youtube-dl tidak ditemukan. Mendownload youtube-dl...")
         response = requests.get("https://yt-dl.org/downloads/latest/youtube-dl")
-        with open(youtube_dl_path, "wb") as file:
+        with open("/tmp/youtube-dl", "wb") as file:
             file.write(response.content)
-        os.chmod(youtube_dl_path, 0o755)
+        subprocess.run(["sudo", "mv", "/tmp/youtube-dl", youtube_dl_path])
+        subprocess.run(["sudo", "chmod", "a+rx", youtube_dl_path])
         print("youtube-dl berhasil di-download dan diinstal.")
 
     if not os.path.exists(youtube_dl_symlink):
-        os.symlink(youtube_dl_path, youtube_dl_symlink)
+        subprocess.run(["sudo", "ln", "-s", youtube_dl_path, youtube_dl_symlink])
         print(f"Symbolic link untuk youtube-dl dibuat di {youtube_dl_symlink}")
     else:
         print("Symbolic link untuk youtube-dl sudah ada.")
