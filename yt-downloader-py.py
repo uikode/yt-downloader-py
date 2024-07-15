@@ -126,7 +126,7 @@ def batch_download_videos(video_quality):
         "-f", format_option,
         "--merge-output-format", "mp4",
         "-a", download_list_path,
-        "-o", os.path.join(download_folder, "%(title)s.%(ext)s")
+        "-o", os.path.join(download_folder, f"%(title)s_{video_quality}.%(ext)s")
     ]
     
     subprocess.run(command)
