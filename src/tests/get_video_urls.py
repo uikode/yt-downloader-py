@@ -1,5 +1,27 @@
 import os
 import subprocess
+import sys
+import importlib
+
+def install_and_import(module_name):
+    """
+    Install and import a module if it is not already installed.
+
+    Parameters:
+    - module_name: The name of the module to install and import.
+    """
+    try:
+        importlib.import_module(module_name)
+        print(f"{module_name} is already installed.")
+    except ImportError:
+        print(f"{module_name} is not found. Installing {module_name}...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "--user", module_name])
+        print(f"{module_name} is now installed.")
+
+# Ensure tqdm is installed
+install_and_import('tqdm')
+
+from tqdm import tqdm
 import argparse
 
 def get_video_urls(channel_url):
@@ -70,5 +92,10 @@ if __name__ == "__main__":
     os.makedirs(data_folder, exist_ok=True)
     file_path = os.path.join(data_folder, "download-list.txt")
 
+    print("Fetching video URLs...")
     video_urls = get_video_urls(args.channel_url)
+
+    print("Writing URLs to file...")
     write_urls_to_file(video_urls, file_path)
+
+    print("URLs have been successfully fetched and written to file.")
