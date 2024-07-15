@@ -1,6 +1,7 @@
 import os
 import subprocess
 import requests
+import argparse
 
 def check_dependency(command, install_command):
     """Check if a dependency is installed, and install it if it is not."""
@@ -108,13 +109,21 @@ def validate_download_list():
     
     return True
 
-def batch_download_videos():
+def batch_download_videos(video_quality):
     download_folder = os.path.expanduser("~/downloaded-yt-video")
     download_list_path = os.path.expanduser("~/download-list.txt")
+
+    quality_map = {
+        "1080p": "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
+        "720p": "bestvideo[height<=720]+bestaudio/best[height<=720]",
+        "480p": "bestvideo[height<=480]+bestaudio/best[height<=480]"
+    }
     
+    format_option = quality_map.get(video_quality, "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]")
+
     command = [
         "yt-dlp",
-        "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]",
+        "-f", format_option,
         "--merge-output-format", "mp4",
         "-a", download_list_path,
         "-o", os.path.join(download_folder, "%(title)s.%(ext)s")
@@ -123,11 +132,15 @@ def batch_download_videos():
     subprocess.run(command)
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Download YouTube videos with specified quality.")
+    parser.add_argument("--quality", choices=["1080p", "720p", "480p"], default="1080p", help="Video quality to download")
+    args = parser.parse_args()
+
     check_dependency("ffmpeg", ["sudo", "apt", "install", "-y", "ffmpeg"])
     if check_yt_dlp():
         validate_download_folder()
         
         if validate_download_list():
-            batch_download_videos()
+            batch_download_videos(args.quality)
         else:
             print("Proses download dihentikan karena tidak ada URL valid di download-list.txt.")
