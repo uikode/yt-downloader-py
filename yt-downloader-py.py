@@ -30,6 +30,13 @@ def validate_download_folder():
     else:
         print(f"Folder {download_folder} sudah tersedia.")
 
+def clean_url(url):
+    # Memisahkan URL pada parameter tambahan dan hanya menggunakan bagian pertama
+    return url.split('&')[0]
+
+def fix_url_format(urls):
+    return [clean_url(url) for url in urls]
+
 def validate_download_list():
     download_list_path = os.path.expanduser("~/download-list.txt")
     
@@ -46,8 +53,11 @@ def validate_download_list():
         print("Daftar URL di download-list.txt kosong. Tambahkan URL video yang ingin di-download.")
         return False
     
+    # Memperbaiki format URL sebelum validasi
+    fixed_urls = fix_url_format(urls)
+    
     valid_urls = []
-    for url in urls:
+    for url in fixed_urls:
         video_id = url.split("v=")[-1]
         video_path = os.path.expanduser(f"~/downloaded-yt-video/{video_id}.mp4")
         
@@ -58,7 +68,7 @@ def validate_download_list():
         try:
             result = subprocess.run(["youtube-dl", "--get-title", url], capture_output=True, text=True)
             if result.returncode == 0:
-                valid_urls.append(url)
+                valid_urls.append(url)  # Gunakan URL asli untuk mengunduh
             else:
                 print(f"URL tidak valid: {url}. Menghapus dari daftar.")
         except subprocess.CalledProcessError as e:
@@ -68,6 +78,7 @@ def validate_download_list():
         print("Tidak ada URL valid yang ditemukan di download-list.txt.")
         return False
     
+    # Memperbarui file download-list.txt dengan URL yang telah diperbaiki
     with open(download_list_path, "w") as file:
         file.write("\n".join(valid_urls))
     
