@@ -8,11 +8,7 @@ def check_dependency(command, install_command):
     try:
         subprocess.run([command, "--version"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         print(f"{command} sudah terinstal.")
-    except subprocess.CalledProcessError:
-        print(f"{command} tidak ditemukan. Menginstal {command}...")
-        subprocess.run(install_command, check=True)
-        print(f"{command} berhasil diinstal.")
-    except FileNotFoundError:
+    except (subprocess.CalledProcessError, FileNotFoundError):
         print(f"{command} tidak ditemukan. Menginstal {command}...")
         subprocess.run(install_command, check=True)
         print(f"{command} berhasil diinstal.")
@@ -114,10 +110,10 @@ def batch_download_videos(video_quality):
     download_list_path = os.path.expanduser("~/download-list.txt")
 
     quality_map = {
-        "best": "bestvideo[height<=2160]+bestaudio/best[height<=2160]",
-        "1080p": "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
-        "720p": "bestvideo[height<=720]+bestaudio/best[height<=720]",
-        "480p": "bestvideo[height<=480]+bestaudio/best[height<=480]"
+        "best": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]",
+        "1080p": "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]",
+        "720p": "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]",
+        "480p": "bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4]"
     }
     
     format_option = quality_map.get(video_quality, quality_map["best"])
@@ -127,10 +123,18 @@ def batch_download_videos(video_quality):
         "-f", format_option,
         "--merge-output-format", "mp4",
         "-a", download_list_path,
-        "-o", os.path.join(download_folder, f"%(title)s_{video_quality}.%(ext)s")
+        "-o", os.path.join(download_folder, f"%(title)s.%(ext)s")
     ]
     
     subprocess.run(command)
+
+    # Rename the merged files with quality information
+    for root, _, files in os.walk(download_folder):
+        for file in files:
+            if file.endswith(".mp4"):
+                base, ext = os.path.splitext(file)
+                new_name = f"{base}_{video_quality}{ext}"
+                os.rename(os.path.join(root, file), os.path.join(root, new_name))
 
 def usage():
     usage_text = """
