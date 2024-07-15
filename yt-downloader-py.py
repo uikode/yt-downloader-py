@@ -42,8 +42,8 @@ def check_yt_dlp():
     
     return True
 
-def validate_download_folder():
-    download_folder = os.path.expanduser("~/downloaded-yt-video")
+def validate_download_folder(base_folder):
+    download_folder = os.path.join(base_folder, "downloaded-yt-video")
     
     if not os.path.exists(download_folder):
         os.makedirs(download_folder)
@@ -58,8 +58,8 @@ def clean_url(url):
 def fix_url_format(urls):
     return [clean_url(url) for url in urls]
 
-def validate_download_list():
-    download_list_path = os.path.expanduser("~/download-list.txt")
+def validate_download_list(base_folder):
+    download_list_path = os.path.join(base_folder, "download-list.txt")
     
     if not os.path.exists(download_list_path):
         print("File download-list.txt tidak ditemukan. Buat file dan isi dengan URL video yang ingin di-download.")
@@ -80,7 +80,7 @@ def validate_download_list():
     valid_urls = []
     for url in fixed_urls:
         video_id = url.split("v=")[-1]
-        video_path = os.path.expanduser(f"~/downloaded-yt-video/{video_id}.mp4")
+        video_path = os.path.join(base_folder, "downloaded-yt-video", f"{video_id}.mp4")
         
         if os.path.exists(video_path):
             print(f"Video {url} sudah di-download sebelumnya. Menghapus dari daftar.")
@@ -105,9 +105,9 @@ def validate_download_list():
     
     return True
 
-def batch_download_videos(video_quality):
-    download_folder = os.path.expanduser("~/downloaded-yt-video")
-    download_list_path = os.path.expanduser("~/download-list.txt")
+def batch_download_videos(base_folder, video_quality):
+    download_folder = os.path.join(base_folder, "downloaded-yt-video")
+    download_list_path = os.path.join(base_folder, "download-list.txt")
 
     quality_map = {
         "best": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]",
@@ -153,13 +153,13 @@ Examples:
      python3 yt-downloader-py.py -q 1080p
      
 Description:
-  This script downloads YouTube videos based on a list of URLs provided in the ~/download-list.txt file.
-  The videos will be downloaded to the ~/downloaded-yt-video directory.
+  This script downloads YouTube videos based on a list of URLs provided in the ~/yt-downloader-py-data/download-list.txt file.
+  The videos will be downloaded to the ~/yt-downloader-py-data/downloaded-yt-video directory.
   If the required dependencies (yt-dlp and ffmpeg) are not installed, the script will install them automatically.
   The downloaded videos will be saved in MP4 format with the specified quality.
 
 Note:
-  Ensure that the URLs in ~/download-list.txt are valid YouTube video URLs.
+  Ensure that the URLs in ~/yt-downloader-py-data/download-list.txt are valid YouTube video URLs.
 """
     print(usage_text)
 
@@ -173,11 +173,15 @@ if __name__ == "__main__":
         usage()
         exit()
 
+    base_folder = os.path.expanduser("~/yt-downloader-py-data")
+    if not os.path.exists(base_folder):
+        os.makedirs(base_folder)
+
     check_dependency("ffmpeg", ["sudo", "apt", "install", "-y", "ffmpeg"])
     if check_yt_dlp():
-        validate_download_folder()
+        validate_download_folder(base_folder)
         
-        if validate_download_list():
-            batch_download_videos(args.quality)
+        if validate_download_list(base_folder):
+            batch_download_videos(base_folder, args.quality)
         else:
             print("Proses download dihentikan karena tidak ada URL valid di download-list.txt.")
