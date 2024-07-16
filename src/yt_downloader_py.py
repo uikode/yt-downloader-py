@@ -149,6 +149,10 @@ def batch_download_videos(video_quality, handler):
 
     while True:
         urls = handler.get_urls()
+        if not urls:
+            print("Download process stopped because no valid URLs found in download-list.txt.")
+            break
+
         for url in urls:
             command = [
                 "yt-dlp",
@@ -232,6 +236,9 @@ if __name__ == "__main__":
                 batch_download_videos(args.quality, handler)
             else:
                 print("Download process stopped because no valid URLs found in download-list.txt.")
+                observer.stop()
+                observer.join()
+                sys.exit(0)
         except KeyboardInterrupt:
             observer.stop()
-        observer.join()
+            observer.join()
