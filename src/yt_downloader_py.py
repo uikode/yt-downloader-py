@@ -1,6 +1,5 @@
 import os
 import subprocess
-import requests
 import argparse
 import sys
 from watchdog.observers import Observer
@@ -24,6 +23,11 @@ def check_python_package(package_name, install_command):
         print(f"{package_name} is not found. Installing {package_name}...")
         subprocess.run(install_command, check=True)
         print(f"{package_name} is now installed.")
+
+check_python_package("watchdog", [sys.executable, "-m", "pip", "install", "--user", "watchdog"])
+check_python_package("requests", [sys.executable, "-m", "pip", "install", "--user", "requests"])
+
+import requests
 
 def check_yt_dlp():
     yt_dlp_path = "/usr/local/bin/yt-dlp"
@@ -164,6 +168,14 @@ def batch_download_videos(video_quality, handler):
                         new_name = f"{base}_{video_quality}{ext}"
                         os.rename(os.path.join(root, file), os.path.join(root, new_name))
 
+            # Remove the processed URL from the download list
+            with open(download_list_path, "r") as file:
+                lines = file.readlines()
+            with open(download_list_path, "w") as file:
+                for line in lines:
+                    if clean_url(line.strip()) != clean_url(url):
+                        file.write(line)
+
         # Update download list in memory
         handler.urls = handler.load_urls()
 
@@ -205,7 +217,6 @@ if __name__ == "__main__":
         exit()
 
     check_dependency("ffmpeg", ["sudo", "apt", "install", "-y", "ffmpeg"], version_arg="-version")
-    check_python_package("watchdog", [sys.executable, "-m", "pip", "install", "watchdog"])
     if check_yt_dlp():
         validate_download_folder()
         
