@@ -70,3 +70,7 @@ Feel free to contribute to this project by submitting issues or pull requests. L
 ### License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
+
+### Disclaimer
+This application is for personal use only. The developer is not responsible for any misuse of this application. Users are responsible for ensuring that they comply with all applicable laws and terms of service of the platforms they are using.
+
