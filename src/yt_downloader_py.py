@@ -2,6 +2,7 @@ import os
 import subprocess
 import requests
 import argparse
+import sys
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import threading
@@ -14,6 +15,15 @@ def check_dependency(command, install_command, version_arg="--version"):
         print(f"{command} is not found. Installing {command}...")
         subprocess.run(install_command, check=True)
         print(f"{command} is now installed.")
+
+def check_python_package(package_name, install_command):
+    try:
+        __import__(package_name)
+        print(f"{package_name} is already installed.")
+    except ImportError:
+        print(f"{package_name} is not found. Installing {package_name}...")
+        subprocess.run(install_command, check=True)
+        print(f"{package_name} is now installed.")
 
 def check_yt_dlp():
     yt_dlp_path = "/usr/local/bin/yt-dlp"
@@ -195,6 +205,7 @@ if __name__ == "__main__":
         exit()
 
     check_dependency("ffmpeg", ["sudo", "apt", "install", "-y", "ffmpeg"], version_arg="-version")
+    check_python_package("watchdog", [sys.executable, "-m", "pip", "install", "watchdog"])
     if check_yt_dlp():
         validate_download_folder()
         
