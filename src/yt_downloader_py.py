@@ -126,7 +126,8 @@ def validate_download_list(handler, video_quality):
         
         if os.path.exists(video_path):
             print(f"Video {url} with title {video_title} and quality {video_quality} is already downloaded. Removing from the list.")
-            handler.urls.remove(url)
+            if url in handler.urls:
+                handler.urls.remove(url)
             continue
         
         valid_urls.append(url)  # Use the original URL for downloading
@@ -173,7 +174,8 @@ def batch_download_videos(video_quality, handler):
                         os.rename(os.path.join(root, file), os.path.join(root, new_name))
 
             # Remove the processed URL from the handler and download list file
-            handler.urls.remove(url)
+            if url in handler.urls:
+                handler.urls.remove(url)
             with open(download_list_path, "r") as file:
                 lines = file.readlines()
             with open(download_list_path, "w") as file:
