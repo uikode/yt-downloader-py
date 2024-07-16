@@ -2,16 +2,11 @@ import os
 import subprocess
 import requests
 import argparse
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+import threading
 
 def check_dependency(command, install_command, version_arg="--version"):
-    """
-    Check if a program (dependency) is installed, and install it if it is not.
-
-    Parameters:
-    - command: The command to check for the program.
-    - install_command: The command to install the program.
-    - version_arg: The argument to check the program's version (default is "--version").
-    """
     try:
         subprocess.run([command, version_arg], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         print(f"{command} is already installed.")
@@ -21,12 +16,6 @@ def check_dependency(command, install_command, version_arg="--version"):
         print(f"{command} is now installed.")
 
 def check_yt_dlp():
-    """
-    Check if yt-dlp is installed, and download and install it if it is not.
-
-    Returns:
-    - True if yt-dlp is installed or successfully installed, False otherwise.
-    """
     yt_dlp_path = "/usr/local/bin/yt-dlp"
     yt_dlp_symlink = "/usr/bin/yt-dlp"
     
@@ -56,9 +45,6 @@ def check_yt_dlp():
     return True
 
 def validate_download_folder():
-    """
-    Check if the download folder exists, and create it if it does not.
-    """
     data_folder = os.path.expanduser("~/yt-downloader-py-data")
     download_folder = os.path.join(data_folder, "downloaded-yt-video")
     
@@ -69,39 +55,12 @@ def validate_download_folder():
         print(f"Folder {download_folder} already exists.")
 
 def clean_url(url):
-    """
-    Clean the URL by removing extra parameters.
-
-    Parameters:
-    - url: The original URL.
-
-    Returns:
-    - The cleaned URL.
-    """
     return url.split('&')[0]
 
 def fix_url_format(urls):
-    """
-    Clean all URLs in a list.
-
-    Parameters:
-    - urls: The list of URLs.
-
-    Returns:
-    - A list of cleaned URLs.
-    """
     return [clean_url(url) for url in urls]
 
 def get_video_title(url):
-    """
-    Get the title of the video from its URL.
-
-    Parameters:
-    - url: The video URL.
-
-    Returns:
-    - The video title if successful, None otherwise.
-    """
     try:
         result = subprocess.run(["yt-dlp", "--get-title", url], capture_output=True, text=True)
         if result.returncode == 0:
@@ -113,34 +72,35 @@ def get_video_title(url):
         print(f"Error getting title for URL: {url}. Error message: {e}")
         return None
 
-def validate_download_list(video_quality):
-    """
-    Check if the download list file exists and contains valid URLs. Remove URLs that are already downloaded.
+class DownloadListHandler(FileSystemEventHandler):
+    def __init__(self, file_path):
+        self.file_path = file_path
+        self.urls = self.load_urls()
 
-    Parameters:
-    - video_quality: The quality of the video to check for existing downloads.
+    def on_modified(self, event):
+        if event.src_path == self.file_path:
+            print(f"{self.file_path} has been modified. Reloading URLs...")
+            self.urls = self.load_urls()
 
-    Returns:
-    - A list of valid URLs to download.
-    """
+    def load_urls(self):
+        with open(self.file_path, "r") as file:
+            urls = file.readlines()
+        return [url.strip() for url in urls if url.strip()]
+
+    def get_urls(self):
+        return self.urls
+
+def monitor_file(file_path, handler):
+    observer = Observer()
+    observer.schedule(handler, path=os.path.dirname(file_path), recursive=False)
+    observer.start()
+    return observer
+
+def validate_download_list(handler, video_quality):
     data_folder = os.path.expanduser("~/yt-downloader-py-data")
-    download_list_path = os.path.join(data_folder, "download-list.txt")
     download_folder = os.path.join(data_folder, "downloaded-yt-video")
-    
-    if not os.path.exists(download_list_path):
-        print("File download-list.txt not found. Create the file and add the video URLs you want to download.")
-        return []
-    
-    with open(download_list_path, "r") as file:
-        urls = file.readlines()
-    
-    urls = [url.strip() for url in urls if url.strip()]
-    
-    if not urls:
-        print("The URL list in download-list.txt is empty. Add the video URLs you want to download.")
-        return []
-    
-    fixed_urls = fix_url_format(urls)
+
+    fixed_urls = fix_url_format(handler.get_urls())
     
     valid_urls = []
     for url in fixed_urls:
@@ -157,19 +117,9 @@ def validate_download_list(video_quality):
         
         valid_urls.append(url)  # Use the original URL for downloading
     
-    with open(download_list_path, "w") as file:
-        file.write("\n".join(valid_urls))
-    
     return valid_urls
 
-def batch_download_videos(video_quality, urls):
-    """
-    Download and merge videos from the URLs in the download list.
-
-    Parameters:
-    - video_quality: The quality of the video to download.
-    - urls: The list of URLs to download.
-    """
+def batch_download_videos(video_quality, handler):
     data_folder = os.path.expanduser("~/yt-downloader-py-data")
     download_folder = os.path.join(data_folder, "downloaded-yt-video")
     download_list_path = os.path.join(data_folder, "download-list.txt")
@@ -183,37 +133,31 @@ def batch_download_videos(video_quality, urls):
     
     format_option = quality_map.get(video_quality, quality_map["best"])
 
-    for url in urls:
-        command = [
-            "yt-dlp",
-            "-f", format_option,
-            "--merge-output-format", "mp4",
-            url,
-            "-o", os.path.join(download_folder, f"%(title)s.%(ext)s")
-        ]
-        
-        subprocess.run(command)
+    while True:
+        urls = handler.get_urls()
+        for url in urls:
+            command = [
+                "yt-dlp",
+                "-f", format_option,
+                "--merge-output-format", "mp4",
+                url,
+                "-o", os.path.join(download_folder, f"%(title)s.%(ext)s")
+            ]
+            
+            subprocess.run(command)
 
-        # Rename files after download and merge
-        for root, _, files in os.walk(download_folder):
-            for file in files:
-                if file.endswith(".mp4") and not file.endswith(f"_{video_quality}.mp4"):
-                    base, ext = os.path.splitext(file)
-                    new_name = f"{base}_{video_quality}{ext}"
-                    os.rename(os.path.join(root, file), os.path.join(root, new_name))
+            # Rename files after download and merge
+            for root, _, files in os.walk(download_folder):
+                for file in files:
+                    if file.endswith(".mp4") and not file.endswith(f"_{video_quality}.mp4"):
+                        base, ext = os.path.splitext(file)
+                        new_name = f"{base}_{video_quality}{ext}"
+                        os.rename(os.path.join(root, file), os.path.join(root, new_name))
 
-        # Remove the processed URL from the download list
-        with open(download_list_path, "r") as file:
-            lines = file.readlines()
-        with open(download_list_path, "w") as file:
-            for line in lines:
-                if line.strip() != url:
-                    file.write(line)
+        # Update download list in memory
+        handler.urls = handler.load_urls()
 
 def usage():
-    """
-    Display usage instructions and examples.
-    """
     usage_text = """
 Usage: python3 yt-downloader-py.py [options]
 
@@ -254,8 +198,17 @@ if __name__ == "__main__":
     if check_yt_dlp():
         validate_download_folder()
         
-        urls_to_download = validate_download_list(args.quality)
-        if urls_to_download:
-            batch_download_videos(args.quality, urls_to_download)
-        else:
-            print("Download process stopped because no valid URLs found in download-list.txt.")
+        data_folder = os.path.expanduser("~/yt-downloader-py-data")
+        download_list_path = os.path.join(data_folder, "download-list.txt")
+        handler = DownloadListHandler(download_list_path)
+        observer = monitor_file(download_list_path, handler)
+
+        try:
+            urls_to_download = validate_download_list(handler, args.quality)
+            if urls_to_download:
+                batch_download_videos(args.quality, handler)
+            else:
+                print("Download process stopped because no valid URLs found in download-list.txt.")
+        except KeyboardInterrupt:
+            observer.stop()
+        observer.join()
