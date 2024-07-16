@@ -2,8 +2,6 @@ import os
 import subprocess
 import argparse
 import sys
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
 import threading
 
 def check_dependency(command, install_command, version_arg="--version"):
@@ -27,6 +25,8 @@ def check_python_package(package_name, install_command):
 check_python_package("watchdog", [sys.executable, "-m", "pip", "install", "--user", "watchdog"])
 check_python_package("requests", [sys.executable, "-m", "pip", "install", "--user", "requests"])
 
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 import requests
 
 def check_yt_dlp():
